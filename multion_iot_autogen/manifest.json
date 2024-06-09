@@ -1,0 +1,10 @@
+{
+    "domain": "multion_iot_autogen",
+    "name": "multion iot autogen",
+    "version": "1.0",
+    "documentation": "https://github.com/imhokyun/multion-iot-autogen",
+    "requirements": ["requests", "PyYAML" ],
+    "dependencies": [],
+    "codeowners": ["@ihkcross"]
+  }
+  
