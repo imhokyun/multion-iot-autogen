@@ -5,6 +5,7 @@
     "documentation": "https://github.com/imhokyun/multion-iot-autogen",
     "requirements": ["requests", "PyYAML" ],
     "dependencies": [],
+    "iot_class": "local_polling",
     "codeowners": ["@ihkcross"]
   }
   
