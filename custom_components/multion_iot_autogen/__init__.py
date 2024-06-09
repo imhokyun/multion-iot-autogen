@@ -1,6 +1,5 @@
 import logging
 import json
-import os
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import discovery
 import yaml
