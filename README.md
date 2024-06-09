@@ -13,7 +13,7 @@ This is a custom component for Home Assistant.
 ```yaml
 homeassistant:
   custom_components:
-    - my_component
+    - multion_iot_autogen
 
 button:
-  - platform: my_component
+  - platform: Multion IoT Autogen

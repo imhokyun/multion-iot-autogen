@@ -52,6 +52,13 @@ def setup(hass: HomeAssistant, config: dict):
                         sync_switch(trigger_id, action_id, "on", friendly_name),
                         sync_switch(trigger_id, action_id, "off", friendly_name)
                     ])
+            elif "등" in base_name:
+                if base_name in non_st_entities:
+                    action_id = non_st_entities[base_name]
+                    automations.extend([
+                        sync_light(trigger_id, action_id, "on", friendly_name),
+                        sync_light(trigger_id, action_id, "off", friendly_name)
+                        ])
             elif "1회 열기" in base_name:
                 if base_name in non_st_entities:
                     action_id = non_st_entities[base_name]
@@ -107,6 +114,26 @@ def setup(hass: HomeAssistant, config: dict):
             "condition": [],
             "action": [{
                 "service": f"switch.turn_{trigger_state}",
+                "target": {
+                    "entity_id": action_entity
+                }
+            }]
+        }
+    
+    def sync_light(trigger_entity, action_entity, trigger_state, friendly_name):
+        return {
+            "id": generate_random_id(),
+            "alias": f'{friendly_name} {trigger_state}',
+            "description": "",
+            "mode": "single",
+            "trigger": [{
+                "platform": "state",
+                "entity_id": trigger_entity,
+                "to": trigger_state
+            }],
+            "condition": [],
+            "action": [{
+                "service": f"light.turn_{trigger_state}",
                 "target": {
                     "entity_id": action_entity
                 }
