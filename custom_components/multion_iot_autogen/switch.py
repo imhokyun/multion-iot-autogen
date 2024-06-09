@@ -16,6 +16,7 @@ class MyComponentSwitch(SwitchEntity):
         self._attr_name = "Multi-on Auto-gen"
         self._attr_unique_id = "multion_iot_autogen_switch"
         self._is_on = False
+        self._attr_icon = "mdi:robot"
 
     @property
     def is_on(self):
