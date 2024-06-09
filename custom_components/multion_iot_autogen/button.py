@@ -18,4 +18,8 @@ class MyComponentButton(ButtonEntity):
     def press(self):
         self._hass.services.call(DOMAIN, 'get_entities')
         self._hass.services.call(DOMAIN, 'create_automations')
+        self._hass.services.call('automation', 'reload')
+        self._hass.services.call('persistent_notification', 'create', {
+            'message': 'done!'
+        })
 

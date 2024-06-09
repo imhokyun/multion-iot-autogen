@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import discovery
 import yaml
@@ -80,8 +81,16 @@ def setup(hass: HomeAssistant, config: dict):
             if all(key in entities for key in ('st', 'switch_on', 'button_off')):
                 automations.extend(create_pc_automations(entities['st'], entities['switch_on'], entities['button_off'], room))
 
+
+        with open('/config/custom_components/multion_iot_autogen/automations.yaml', 'w') as file:
+            yaml.dump(automations, file, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
+        
         with open('/config/automations.yaml', 'w') as file:
             yaml.dump(automations, file, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
+
+        # automations_path = os.path.join(hass.config.path(), 'automations.yaml')
+        # with open(automations_path, 'w') as file:
+        #     yaml.dump(automations, file, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
 
         _LOGGER.info("Automations created and saved to automations.yaml")
 
@@ -174,9 +183,11 @@ def setup(hass: HomeAssistant, config: dict):
         import string
         return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
+        
     # Register services
     hass.services.register(DOMAIN, 'get_entities', lambda service: get_entity())
     hass.services.register(DOMAIN, 'create_automations', lambda service: create_automations())
+
 
     # Load platforms
     discovery.load_platform(hass, 'button', DOMAIN, {}, config)
