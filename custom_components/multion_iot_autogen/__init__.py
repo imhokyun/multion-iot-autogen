@@ -13,6 +13,7 @@ def setup(hass: HomeAssistant, config: dict):
         # Home Assistant에서 모든 엔티티 가져오기
         all_entities = hass.states.async_all()
         
+        # 필터링된 엔티티 리스트 생성
         filtered_entities = [
             {
                 'entity_id': entity.entity_id,
@@ -22,13 +23,10 @@ def setup(hass: HomeAssistant, config: dict):
             if entity.entity_id.startswith(('switch.', 'climate.', 'button.', 'light.'))
         ]
 
-        with open('/config/custom_components/multion_iot_autogen/device_list.json', 'w', encoding='utf-8') as file:
-            json.dump(filtered_entities, file, ensure_ascii=False, indent=4)
-        _LOGGER.info("Filtered device data saved to device_list.json")
+        return filtered_entities
 
     def create_automations():
-        with open('/config/custom_components/multion_iot_autogen/device_list.json', 'r') as d:
-            data = json.load(d)
+        data = get_entity()
 
         st_entities, non_st_entities, friendly_names = {}, {}, {}
 
@@ -87,16 +85,9 @@ def setup(hass: HomeAssistant, config: dict):
             if all(key in entities for key in ('st', 'switch_on', 'button_off')):
                 automations.extend(create_pc_automations(entities['st'], entities['switch_on'], entities['button_off'], room))
 
-
-        with open('/config/custom_components/multion_iot_autogen/automations.yaml', 'w') as file:
-            yaml.dump(automations, file, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
         
         with open('/config/automations.yaml', 'w') as file:
             yaml.dump(automations, file, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
-
-        # automations_path = os.path.join(hass.config.path(), 'automations.yaml')
-        # with open(automations_path, 'w') as file:
-        #     yaml.dump(automations, file, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
 
         _LOGGER.info("Automations created and saved to automations.yaml")
 
@@ -209,13 +200,10 @@ def setup(hass: HomeAssistant, config: dict):
         import string
         return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
-        
-    # Register services
-    hass.services.register(DOMAIN, 'get_entities', lambda service: get_entity())
     hass.services.register(DOMAIN, 'create_automations', lambda service: create_automations())
 
 
     # Load platforms
-    discovery.load_platform(hass, 'button', DOMAIN, {}, config)
+    discovery.load_platform(hass, 'switch', DOMAIN, {}, config)
 
     return True
