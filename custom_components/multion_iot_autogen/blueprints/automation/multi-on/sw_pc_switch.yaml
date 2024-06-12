@@ -1,0 +1,73 @@
+blueprint:
+  name: sw_pc_switch
+  description: |
+    ## Multi-on
+
+    ## ST 스위치에 따라 Wol, pc off 버튼으로 PC를 제어
+
+    ## 매 10분 마다 PC 상태를 확인하여 ST 스위치에 반영
+
+    ## Requirements
+    Smartthings 에 각 냉난방기에 추가적으로 스위치를 만들고, ex) "룸1 냉난방기 상태확인"
+    각 공간별 ON 자동화가 실행될 시 "룸1 냉난방기 상태확인" 을 켜고, 55분 후 "룸1 냉난방기 확인" 을 끄는 로직을 추가해줘야함!
+  domain: automation
+  input:
+    pc_st_switch:
+      name: 룸X PC ST
+      selector:
+        entity:
+          domain: switch
+    wol_switch:
+      name: 룸X PC WOL
+      selector:
+        entity:
+          domain: switch
+    pc_off_button:
+      name: PC 끄기
+      selector:
+        entity:
+          domain: button
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: !input 'pc_st_switch'
+  - platform: time_pattern
+    minutes: '/10'
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input 'pc_st_switch'
+            state: 'on'
+        sequence:
+          - service: switch.turn_on
+            entity_id: !input 'wol_switch'
+      - conditions:
+          - condition: state
+            entity_id: !input 'pc_st_switch'
+            state: 'off'
+        sequence:
+          - service: button.press
+            entity_id: !input 'pc_off_button'
+  - delay: '00:00:05'  # 간단한 지연을 추가하여 상태가 완전히 업데이트될 시간을 제공
+  - condition: template
+    value_template: "{{ now().minute % 10 == 0 }}"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ state_attr('button.pc_off_button', 'available') == false }}"
+        sequence:
+          - service: switch.turn_off
+            entity_id: !input 'pc_st_switch'
+      - conditions:
+          - condition: template
+            value_template: "{{ state_attr('button.pc_off_button', 'available') == true }}"
+        sequence:
+          - service: switch.turn_on
+            entity_id: !input 'pc_st_switch'

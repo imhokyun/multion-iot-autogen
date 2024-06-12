@@ -1,0 +1,59 @@
+blueprint:
+  name: sync_switch
+  description: |
+    ## Multi-on
+
+    ## ST 스위치, 실제 스위치 기기간 연동
+    삼성 ST 가상스위치와, 실제 스위치 기기간 on, off 상태를 연동함
+
+    ### Requirements
+    기기는 HA에서 .turn_on, .turn_off 명령으로 제어할 수 있어야 이용 가능
+    ex) switch <--> light, switch <--> switch, switch <--> PC
+  domain: automation
+  homeassistant:
+    min_version: 2022.5.0
+  input:
+    entity_one:
+      name: First Device
+      selector:
+        entity:
+    entity_two:
+      name: Second Device
+      selector:
+        entity:
+
+mode: queued
+max_exceeded: silent
+
+variables:
+  entity_one: !input 'entity_one'
+  entity_two: !input 'entity_two'
+
+trigger:
+  - platform: state
+    entity_id: !input 'entity_one'
+  - platform: state
+    entity_id: !input 'entity_two'
+
+condition:
+  - condition: template
+    value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+  - condition: template
+    value_template: "{{ (trigger.to_state.state == 'on') or (trigger.to_state.state == 'off') }}"
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.entity_id == entity_one }}"
+        sequence:
+          - service: "homeassistant.turn_{{ trigger.to_state.state }}"
+            target:
+              entity_id: !input 'entity_two'
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.entity_id == entity_two }}"
+        sequence:
+          - service: "homeassistant.turn_{{ trigger.to_state.state }}"
+            target:
+              entity_id: !input 'entity_one'
