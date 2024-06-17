@@ -128,7 +128,7 @@ def setup(hass: HomeAssistant, config: dict):
                             created_automations.append(group["automation_name"])  
                     # 타입3 PICO 이용 방식
                         elif status_device:
-                            automation = create_pico_pc_switch_bp(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["device_list"][2]["entity_id"], group["automation_name"])
+                            automation = create_pico_pc_switch_bp(group["device_list"][0]["entity_id"], group["device_list"][2]["entity_id"], group["device_list"][1]["entity_id"], group["automation_name"])
                             automations.append(automation)
                             created_automations.append(group["automation_name"])
                 # 냉난방기 연동
