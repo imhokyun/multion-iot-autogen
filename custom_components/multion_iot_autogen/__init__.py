@@ -86,8 +86,9 @@ def setup(hass: HomeAssistant, config: dict):
                     "automation_name": automation_name,
                     "device_list": matched_devices
                 })
-
-        with open('paired_devices.json', 'w') as json_file:
+                
+        paired_devices_path = os.path.join(os.path.dirname(__file__), 'paired_devices.json')
+        with open(paired_devices_path, 'w', encoding='utf-8') as json_file:
             json.dump(paired_devices, json_file, ensure_ascii=False, indent=4)
         
         return paired_devices
