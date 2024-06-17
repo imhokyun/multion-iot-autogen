@@ -133,7 +133,7 @@ def setup(hass: HomeAssistant, config: dict):
                             created_automations.append(group["automation_name"])
                 # 냉난방기 연동
                 elif any(keyword in group["automation_name"] for keyword in ["냉난방기"]):
-                    automation = create_ac_bp(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["device_list"][2]["entity_id"], group["automation_name"])
+                    automation = create_ac_bp(group["device_list"][0]["entity_id"], group["device_list"][2]["entity_id"], group["device_list"][1]["entity_id"], group["automation_name"])
                     automations.append(automation)
                     created_automations.append(group["automation_name"])
 
