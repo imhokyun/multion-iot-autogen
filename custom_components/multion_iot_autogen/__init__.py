@@ -44,148 +44,182 @@ def setup(hass: HomeAssistant, config: dict):
                 'friendly_name': entity.attributes.get('friendly_name', entity.entity_id)
             }
             for entity in all_entities
-            if entity.entity_id.startswith(('switch.', 'climate.', 'button.', 'light.'))
+            if entity.entity_id.startswith(('switch.', 'climate.', 'button.', 'light.', 'binary_sensor.'))
         ]
 
+        # 필터링된 엔티티를 JSON 파일로 저장
+        devices_list_path = os.path.join(os.path.dirname(__file__), 'devices_list.json')
+        with open(devices_list_path, 'w', encoding='utf-8') as file:
+            json.dump(filtered_entities, file, ensure_ascii=False, indent=4)
+
         return filtered_entities
+    
+    def pair_devices(device_list):
+        stSwitch = []
+        otherDevices = []
+    
+        for device in device_list:
+            if device["friendly_name"].lower().endswith(" st"):
+                # 냉난방기 끄기 예외처리
+                if "냉난방기" in device["friendly_name"] and "끄기" in device["friendly_name"]:
+                    otherDevices.append(device)
+                # 냉난방기 끄기 스위치를 제외한 나머지 스위치는 main entity로 분류
+                else:
+                    stSwitch.append(device)
+            else:
+                otherDevices.append(device)
+        # 이름이 동일한 기기들을 묶기
+        paired_devices = []
+        for st in stSwitch: 
+            st_name = st["friendly_name"][:-3]  # " ST"를 제거
+            matched_devices = [st]
+            automation_name = st_name  # " ST"가 제거된 이름을 automation_name으로 사용
+            for other in otherDevices:
+                other_name = other["friendly_name"].replace(" ST", "")  # " ST"를 제거
+                if other_name == st_name or \
+                other_name == st_name + " 끄기" or \
+                other_name == st_name + " WOL" or \
+                other_name == st_name + " 상태":
+                    matched_devices.append(other)
+            if len(matched_devices) > 1:
+                paired_devices.append({
+                    "automation_name": automation_name,
+                    "device_list": matched_devices
+                })
+
+        with open('paired_devices.json', 'w') as json_file:
+            json.dump(paired_devices, json_file, ensure_ascii=False, indent=4)
+        
+        return paired_devices
 
     def create_automations():
         init_blueprint()
-        data = get_entity()
+        device_groups = pair_devices(get_entity())
 
-        st_entities, non_st_entities, friendly_names, checker_ids = {}, {}, {}, {}
-
-        for item in data:
-            friendly_names[item['entity_id']] = item['friendly_name']
-            if " st" in item['friendly_name'].lower():
-                base_name = item['friendly_name'].lower().replace(" st", "")
-                st_entities[base_name] = item['entity_id']
-            elif "상태확인" in item['friendly_name'].lower():
-                checker_base_name = item['friendly_name'].lower().replace(" 상태확인 st", "")
-                checker_ids[checker_base_name] = item['entity_id']
-            else:
-                non_st_entities[item['friendly_name']] = item['entity_id']
-        
         automations = []
+        created_automations = []  # 이미 생성된 자동화 이름을 저장할 리스트
+        for group in device_groups:
+            if group["automation_name"] not in created_automations:
+                # 1회열기 연동  
+                if group["automation_name"] == "1회 열기":
+                    automation = instant_door_open(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["automation_name"])
+                    automations.append(automation)
+                    created_automations.append(group["automation_name"]) 
+                # 스위치 연동(PC는 아래 로직에서 처리)
+                elif any(keyword in group["automation_name"] for keyword in ["볼공급기", "등", "상시"]) and "PC" not in group["automation_name"]:
+                    automation = create_sync_switch_bp(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["automation_name"])
+                    automations.append(automation)
+                    created_automations.append(group["automation_name"])  
+                # PC 연동(3개 타입에 맞춰 연동)
+                elif any(keyword in group["automation_name"] for keyword in ["PC"]):
+                    # 타입1 2개 스위치
+                    if len(group["device_list"]) == 2:
+                        automation = create_sync_switch_bp(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["automation_name"])
+                        automations.append(automation)
+                        created_automations.append(group["automation_name"])  
+                    elif len(group["device_list"]) == 3:
+                        wol_device = next((device for device in group["device_list"] if "WOL" in device["friendly_name"]), None)
+                        status_device = next((device for device in group["device_list"] if "상태" in device["friendly_name"]), None)
 
-        for base_name, st_entity in st_entities.items():
-            friendly_name = friendly_names[st_entity].lower().replace(" st", "")
-            action_entity = non_st_entities.get(base_name)
-            checker_entity = checker_ids.get(base_name)
+                    # 타입2 SW 방식 WOL + HASS.Agent
+                        if wol_device:
+                            automation = create_sw_pc_switch_bp(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["device_list"][2]["entity_id"], group["automation_name"])
+                            automations.append(automation)
+                            created_automations.append(group["automation_name"])  
+                    # 타입3 PICO 이용 방식
+                        elif status_device:
+                            automation = create_pico_pc_switch_bp(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["device_list"][2]["entity_id"], group["automation_name"])
+                            automations.append(automation)
+                            created_automations.append(group["automation_name"])
+                # 냉난방기 연동
+                elif any(keyword in group["automation_name"] for keyword in ["냉난방기"]):
+                    automation = create_ac_bp(group["device_list"][0]["entity_id"], group["device_list"][1]["entity_id"], group["device_list"][2]["entity_id"], group["automation_name"])
+                    automations.append(automation)
+                    created_automations.append(group["automation_name"])
 
-            if "볼공급기" in base_name or "상시" in base_name or "등" in base_name:
-                if action_entity:
-                    automations.append(create_sync_switch_bp(st_entity, action_entity))
-                    
-            elif "1회 열기" in base_name:
-                if action_entity:
-                    automations.append(instant_door_open(st_entity, action_entity, friendly_name))
-
-            elif "냉난방기" in base_name:
-                if action_entity and checker_entity:
-                    automations.append(create_sync_climate_bp(st_entity, action_entity, checker_entity))
-
-            elif "PC" in base_name:
-                # Assumption: There's some distinguishing feature or naming convention in friendly names
-                if "PC" in friendly_name:
-                    pc_entities = [st_entity] + [eid for name, eid in non_st_entities.items() if base_name in name]
-                    if len(pc_entities) == 3:
-                        # Assuming first is ST, second is WOL, third is Off Button
-                            # PC control type 2 : ex) "룸1 PC ST" 스위치, "룸1 PC 켜기" 스위치, "룸1 PC 끄기" 버튼 => create_sw_pc_switch_bp 이용
-                        automations.append(create_sw_pc_switch_bp(*pc_entities))
-                    elif len(pc_entities) == 2:
-                        # Assuming first is ST, second is button or sensor based on availability
-                        if checker_entity:
-                            # PC control type 3 : ex) "룸1 PC ST" 스위치, "룸1 PC 버튼" 버튼, "룸1 PC 상태" binary_sensor => create_pico_pc_switch_bp 이용
-                            automations.append(create_pico_pc_switch_bp(st_entity, pc_entities[1], checker_entity))
-                        else:
-                            # PC control type 1 : ex) "룸1 PC ST", "룸1 PC" 2개 스위치 => create_sync_switch_bp 이용
-                            automations.append(create_sync_switch_bp(st_entity, pc_entities[1]))
-
+        # with open('automations.yaml', 'w') as file:
         with open('/config/automations.yaml', 'w') as file:
             yaml.dump(automations, file, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
 
-        _LOGGER.info("Automations created and saved to automations.yaml")
-    
-    def create_sync_switch_bp(trigger_id, action_id):
-        return {
-            "id": generate_random_id(),
-            "alias": f"{action_id} 연동",
-            "description": "ST 스위치와 실제 스위치 기기 연동",
-            "use_blueprint": {
-                "path": "multi-on/sync_2_switch.yaml",
-                "input": {
-                    "entity_one": trigger_id,
-                    "entity_two": action_id
-                }
-            }
-        }
-    
-    def create_sync_climate_bp(trigger_id, action_id, checker_id):
-        return {
-            "id": generate_random_id(),
-            "alias": f"{action_id} 연동",
-            "description": "ST 스위치와 냉난방기 제어 기기 연동",
-            "use_blueprint": {
-                "path": "multi-on/ac_switch.yaml",
-                "input": {
-                    "main_st_switch": trigger_id,
-                    "status_check_st_switch": action_id,
-                    "climate_entity": checker_id
-                }
-            }
-        }
-    
-    def create_sw_pc_switch_bp(trigger_id, action_id, button_id):
-        return {
-            "id": generate_random_id(),
-            "alias": f"{action_id} 연동",
-            "description": "ST 스위치와 SW타입 PC연동",
-            "use_blueprint": {
-                "path": "multi-on/sw_pc_switch.yaml",
-                "input": {
-                    "pc_st_switch:": trigger_id,
-                    "wol_switch": action_id,
-                    "pc_off_button": button_id
-                }
-            }
-        }
-    
-    def create_pico_pc_switch_bp(trigger_id, action_id, status_id):
-        return {
-            "id": generate_random_id(),
-            "alias": f"{action_id} 연동",
-            "description": "ST 스위치와 SW타입 PC연동",
-            "use_blueprint": {
-                "path": "multi-on/sw_pc_switch.yaml",
-                "input": {
-                    "pc_st_switch:": trigger_id,
-                    "pc_status_sensor": status_id,
-                    "pc_button": action_id
-                }
-            }
-        }
 
-    def instant_door_open(trigger_entity, action_entity, friendly_name):
-        return {
-            "id": generate_random_id(),
-            "alias": friendly_name,
-            "description": "1회열기 자동화 생성",
-            "mode": "single",
-            "trigger": [{
-                "platform": "state",
-                "entity_id": trigger_entity,
-                "to": "on"
-            }],
-            "condition": [],
-            "action": [
-                {"service": "switch.turn_on", "target": {"entity_id": action_entity}},
-                {"service": "switch.turn_off", "target": {"entity_id": trigger_entity}},
-                {"delay": {"hours": 0, "minutes": 0, "seconds": 7, "milliseconds": 0}},
-                {"service": "switch.turn_off", "target": {"entity_id": action_entity}},
-                {"service": "switch.turn_off", "target": {"entity_id": trigger_entity}}
-            ]
-        }
+
+    def create_sw_pc_switch_bp(trigger_id, action_id, button_id, automation_name):
+            return {
+                "id": generate_random_id(),
+                "alias": f"{automation_name} SW 타입 연동",
+                "description": "ST 스위치와 SW타입 PC연동",
+                "use_blueprint": {
+                    "path": "multi-on/sw_pc_switch.yaml",
+                    "input": {
+                        "pc_st_switch:": trigger_id,
+                        "wol_switch": action_id,
+                        "pc_off_button": button_id
+                    }
+                }
+            }
+    def create_ac_bp(trigger_id, action_id, checker_id, automation_name):
+            return {
+                "id": generate_random_id(),
+                "alias": f"{automation_name} 연동",
+                "description": "ST 스위치와 냉난방기 기기 연동",
+                "use_blueprint": {
+                    "path": "multi-on/ac_switch.yaml",
+                    "input": {
+                        "main_st_switch": trigger_id,
+                        "off_st_switch": action_id,
+                        "climate_entity": checker_id
+                    }
+                }
+            }
+
+    def create_pico_pc_switch_bp(trigger_id, action_id, status_id, automation_name):
+            return {
+                "id": generate_random_id(),
+                "alias": f"{automation_name} pico 타입 연동",
+                "description": "ST 스위치와 SW타입 PC연동",
+                "use_blueprint": {
+                    "path": "multi-on/sw_pc_switch.yaml",
+                    "input": {
+                        "pc_st_switch:": trigger_id,
+                        "pc_status_sensor": status_id,
+                        "pc_button": action_id
+                    }
+                }
+            }
+    def create_sync_switch_bp(trigger_id, action_id, automation_name):
+            return {
+                "id": generate_random_id(),
+                "alias": f"{automation_name} 연동",
+                "description": "ST 스위치와 실제 스위치 기기 연동",
+                "use_blueprint": {
+                    "path": "multi-on/sync_2_switch.yaml",
+                    "input": {
+                        "entity_one": trigger_id,
+                        "entity_two": action_id
+                    }
+                }
+            }
+
+    def instant_door_open(trigger_id, action_id, automation_name):
+            return {
+                "id": generate_random_id(),
+                "alias": f"{automation_name} 연동",
+                "description": "1회열기 자동화 생성",
+                "mode": "single",
+                "trigger": [{
+                    "platform": "state",
+                    "entity_id": trigger_id,
+                    "to": "on"
+                }],
+                "condition": [],
+                "action": [
+                    {"service": "switch.turn_on", "target": {"entity_id": action_id}},
+                    {"service": "switch.turn_off", "target": {"entity_id": trigger_id}},
+                    {"delay": {"hours": 0, "minutes": 0, "seconds": 7, "milliseconds": 0}},
+                    {"service": "switch.turn_off", "target": {"entity_id": action_id}},
+                    {"service": "switch.turn_off", "target": {"entity_id": trigger_id}}
+                ]
+            }
 
     def generate_random_id(length=10):
         import random
