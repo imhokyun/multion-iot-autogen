@@ -1,6 +1,5 @@
 import logging
 import json
-from ac_control import create_ac_variables, init_ac_config_when_restart_ha, ac_on, ac_off
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import discovery
 import yaml
@@ -332,15 +331,20 @@ def setup(hass: HomeAssistant, config: dict):
 
     return True
 
-# -----------------------냉난방기 기능 추가 2024 07 11
+# -----------------------냉난방기 기능 추가 2024 07 11---------------------------
 
 
 def create_ac_variables():
     # devices_list.json 파일 읽기
-    with open(os.path.join(os.path.dirname(__file__), 'devices_list.json'), 'r', encoding='utf-8') as file:
+    base_dir = os.path.dirname(__file__)
+    devices_list_path = os.path.join(base_dir, 'devices_list.json')
+    with open(devices_list_path, 'r', encoding='utf-8') as file:
         devices = json.load(file)
+
     # hvac_settings 폴더 생성
-    os.makedirs(os.path.join('config', 'hvac_settings'), exist_ok=True)
+    hvac_settings_folder = os.path.join(base_dir, 'hvac_settings')
+    if not os.path.exists(hvac_settings_folder):
+        os.makedirs(hvac_settings_folder)
 
     # hvac_input_number.yaml 파일 생성 및 작성
     ac_variables = {}
@@ -358,12 +362,12 @@ def create_ac_variables():
                 "step": 1
             }
             hvac_input_select_content[f"{entity_suffix}_fan_mode"] = {
-                "name": f"{device['friendly_name']} fan_mode",
+                "name": f"{device['friendly_name']} Fan Mode",
                 "options": ["low", "medium", "high", "auto"],
                 "initial": "auto"
             }
             hvac_input_select_content[f"{entity_suffix}_hvac_mode"] = {
-                "name": f"{device['friendly_name']} hvac_mode",
+                "name": f"{device['friendly_name']} HVAC Mode",
                 "options": ["cool", "heat", "auto", "off"],
                 "initial": "auto"
             }
@@ -372,13 +376,26 @@ def create_ac_variables():
 
     print(ac_variables)
 
-    with open('hvac_settings/hvac_input_number.yaml', 'w', encoding='utf-8') as file:
+    hvac_input_number_path = os.path.join(
+        hvac_settings_folder, 'hvac_input_number.yaml')
+    with open(hvac_input_number_path, 'w', encoding='utf-8') as file:
         yaml.dump(hvac_input_number_content, file,
                   allow_unicode=True, line_break=True)
 
-    with open('hvac_settings/hvac_input_select.yaml', 'w', encoding='utf-8') as file:
+    hvac_input_select_path = os.path.join(
+        hvac_settings_folder, 'hvac_input_select.yaml')
+    with open(hvac_input_select_path, 'w', encoding='utf-8') as file:
         yaml.dump(hvac_input_select_content, file,
                   allow_unicode=True, line_break=True)
+
+    # hvac_settings폴더와 폴더 내의 파일을 복사하여 /config 폴더로 이동
+    config_hvac_settings_path = os.path.join(
+        base_dir, 'config', 'hvac_settings')
+    if os.path.exists(config_hvac_settings_path):
+        shutil.rmtree(config_hvac_settings_path)
+    shutil.copytree(hvac_settings_folder, config_hvac_settings_path)
+
+    return ac_variables
 
 
 def init_ac_config_when_restart_ha(random_id, ac_entity, temperature_var, fan_mode_var, hvac_mode_var, automation_name):
