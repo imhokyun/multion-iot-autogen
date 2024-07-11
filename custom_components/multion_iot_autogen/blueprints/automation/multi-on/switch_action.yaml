@@ -1,0 +1,43 @@
+blueprint:
+  name: switch action
+  description: >
+    switch action
+  domain: automation
+  author: multi-on systems
+  input:
+    main_switch:
+      name: main switch
+      selector:
+        entity:
+    on_action:
+      name: on action
+      description: >
+        what to do when switch is on
+      selector:
+        action:
+    off_action:
+      name: off action
+      description: >
+        what to do when switch is off
+      selector:
+        action:
+
+mode: restart
+max_exceeded: warning
+
+trigger:
+  - platform: state
+    entity_id: !input main_switch
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input main_switch
+            state: "on"
+        sequence: !input on_action
+      - conditions:
+          - condition: state
+            entity_id: !input main_switch
+            state: "off"
+        sequence: !input off_action

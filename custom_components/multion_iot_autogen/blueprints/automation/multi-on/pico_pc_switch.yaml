@@ -5,8 +5,6 @@ blueprint:
 
     ## ST 스위치에 따라 RP-PICO 를 이용해 PC를 제어
 
-    ## 매 10분 마다 PC 상태를 확인하여 ST 스위치에 반영
-
     ## Requirements
     esphome 을 이용하여 RP-PICO를 연동하고, PC에 설치 후 이용
   domain: automation
@@ -28,13 +26,11 @@ blueprint:
           domain: button
 
 mode: restart
-max_exceeded: silent
+max_exceeded: warning
 
 trigger:
   - platform: state
-    entity_id: !input 'pc_st_switch'
-  - platform: time_pattern
-    minutes: '/10'
+    entity_id: !input "pc_st_switch"
 
 condition: []
 
@@ -42,41 +38,23 @@ action:
   - choose:
       - conditions:
           - condition: state
-            entity_id: !input 'pc_st_switch'
-            state: 'on'
+            entity_id: !input "pc_st_switch"
+            state: "on"
           - condition: state
-            entity_id: !input 'pc_status_sensor'
-            state: 'off'
+            entity_id: !input "pc_status_sensor"
+            state: "off"
         sequence:
           - service: button.press
             target:
-              entity_id: !input 'pc_button'
+              entity_id: !input "pc_button"
       - conditions:
           - condition: state
-            entity_id: !input 'pc_st_switch'
-            state: 'off'
+            entity_id: !input "pc_st_switch"
+            state: "off"
           - condition: state
-            entity_id: !input 'pc_status_sensor'
-            state: 'on'
+            entity_id: !input "pc_status_sensor"
+            state: "on"
         sequence:
           - service: button.press
             target:
-              entity_id: !input 'pc_button'
-  - delay: '00:00:05'
-  - condition: template
-    value_template: "{{ now().minute % 10 == 0 }}"
-  - choose:
-      - conditions:
-          - condition: state
-            entity_id: !input 'pc_status_sensor'
-            state: 'on'
-        sequence:
-          - service: switch.turn_on
-            entity_id: !input 'pc_st_switch'
-      - conditions:
-          - condition: state
-            entity_id: !input 'pc_status_sensor'
-            state: 'off'
-        sequence:
-          - service: switch.turn_off
-            entity_id: !input 'pc_st_switch'
+              entity_id: !input "pc_button"
