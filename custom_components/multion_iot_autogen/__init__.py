@@ -161,25 +161,50 @@ def setup(hass: HomeAssistant, config: dict):
                                 group["automation_name"])
                 # 냉난방기 연동
                 elif any(keyword in group["automation_name"] for keyword in ["냉난방기"]):
-                    automation_init = init_ac_config_when_restart_ha(generate_random_id(
-                    ), group["device_list"]["real_device"][0]["entity_id"], ac_variables["entity_id"][0], ac_variables["entity_id"][1], ac_variables["entity_id"][2], group["automation_name"])
+                    automation_init = init_ac_config_when_restart_ha(
+                        generate_random_id(),
+                        group["device_list"]["real_device"][0]["entity_id"],
+                        ac_variables[group["device_list"]["real_device"]
+                                     [0]["entity_id"]]['temperature'],
+                        ac_variables[group["device_list"]
+                                     ["real_device"][0]["entity_id"]]['fan_mode'],
+                        ac_variables[group["device_list"]
+                                     ["real_device"][0]["entity_id"]]['hvac_mode'],
+                        group["automation_name"])
                     automations.append(automation_init)
                     created_automations.append(group["automation_name"])
 
-                    automation_on = ac_on(generate_random_id(), group["device_list"]["st_switch"][0]["entity_id"], group["device_list"]["real_device"][0]
-                                          ["entity_id"], ac_variables["entity_id"][0], ac_variables["entity_id"][1], ac_variables["entity_id"][2], f"{group['automation_name']} 켜기")
+                    automation_on = ac_on(
+                        generate_random_id(),
+                        group["device_list"]["st_switch"][0]["entity_id"],
+                        group["device_list"]["real_device"][0]["entity_id"],
+                        ac_variables[group["device_list"]["real_device"]
+                                     [0]["entity_id"]]['temperature'],
+                        ac_variables[group["device_list"]
+                                     ["real_device"][0]["entity_id"]]['fan_mode'],
+                        ac_variables[group["device_list"]
+                                     ["real_device"][0]["entity_id"]]['hvac_mode'],
+                        f"{group['automation_name']} 켜기"
+                    )
                     automations.append(automation_on)
                     created_automations.append(
                         f"{group['automation_name']} 켜기")
 
-                    automation_off = ac_off(generate_random_id(
-                    ), group["device_list"]["st_switch"][0]["entity_id"], group["device_list"]["real_device"][0]["entity_id"], f"{group['automation_name']} 끄기")
+                    automation_off = ac_off(
+                        generate_random_id(),
+                        group["device_list"]["st_switch"][0]["entity_id"],
+                        group["device_list"]["real_device"][0]["entity_id"],
+                        f"{group['automation_name']} 끄기"
+                    )
                     automations.append(automation_off)
                     created_automations.append(
                         f"{group['automation_name']} 끄기")
 
                     automation_make_sure_off = instant_ac_off(
-                        group["device_list"]["real_device"][1]["entity_id"], group["device_list"]["real_device"][0]["entity_id"], f"{group['automation_name']} 한번 더 끄기")
+                        group["device_list"]["real_device"][1]["entity_id"],
+                        group["device_list"]["real_device"][0]["entity_id"],
+                        f"{group['automation_name']} 한번 더 끄기"
+                    )
                     automations.append(automation_make_sure_off)
                     created_automations.append(
                         f"{group['automation_name']} 한번 더 끄기")
@@ -233,20 +258,6 @@ def setup(hass: HomeAssistant, config: dict):
                 {"service": "switch.turn_off", "target": {"entity_id": action_id}}
             ]
         }
-
-    # def create_ac_bp(trigger_id, action_id, automation_name):
-    #     return {
-    #         "id": generate_random_id(),
-    #         "alias": f"{automation_name}",
-    #         "description": "ST 스위치와 냉난방기 기기 연동",
-    #         "use_blueprint": {
-    #             "path": "multi-on/ac_switch.yaml",
-    #             "input": {
-    #                 "main_st_switch": trigger_id,
-    #                 "climate_entity": action_id
-    #             }
-    #         }
-    #     }
 
     def create_pico_pc_switch_bp(trigger_id, action_id, status_id, automation_name):
         return {
@@ -347,7 +358,7 @@ def create_ac_variables():
         os.makedirs(hvac_settings_folder)
 
     # hvac_input_number.yaml 파일 생성 및 작성
-    ac_variables = {}
+    ac_variables = {}  # 수정된 부분
     hvac_input_number_content = {}
     hvac_input_select_content = {}
 
@@ -371,8 +382,11 @@ def create_ac_variables():
                 "options": ["cool", "heat", "auto", "off"],
                 "initial": "auto"
             }
-            ac_variables[device['entity_id']] = [f"{entity_suffix}_temperature", f"{
-                entity_suffix}_fan_mode", f"{entity_suffix}_hvac_mode"]
+            ac_variables[device['entity_id']] = {  # 수정된 부분
+                "temperature": f"{entity_suffix}_temperature",
+                "fan_mode": f"{entity_suffix}_fan_mode",
+                "hvac_mode": f"{entity_suffix}_hvac_mode"
+            }
 
     print(ac_variables)
 
@@ -394,102 +408,110 @@ def create_ac_variables():
     if os.path.exists(config_hvac_settings_path):
         shutil.rmtree(config_hvac_settings_path)
     shutil.copytree(hvac_settings_folder, config_hvac_settings_path)
-
+    print(ac_variables)
     return ac_variables
 
 
 def init_ac_config_when_restart_ha(random_id, ac_entity, temperature_var, fan_mode_var, hvac_mode_var, automation_name):
     return {
-        {
-            "id": random_id,
-            "alias": f"{automation_name}냉난방기 초기값 설정",
-            "description": "HA 재부팅 시 냉난방기 설정값 초기화",
-            "trigger": [
-                {
-                    "platform": "homeassistant",
-                    "event": "start"
+        "id": random_id,
+        "alias": f"{automation_name}냉난방기 초기값 설정",
+        "description": "HA 재부팅 시 냉난방기 설정값 초기화",
+        "trigger": [
+            {
+                "platform": "homeassistant",
+                "event": "start"
+            }
+        ],
+        "condition": [],
+        "action": [
+            {
+                "delay": "00:00:10"
+            },
+            {
+                "service": "input_number.set_value",
+                "data_template": {
+                    "entity_id": f"input_number.{temperature_var}",
+                    "value": f"{{{{ state_attr('{ac_entity}', 'temperature') }}}}"
                 }
-            ],
-            "condition": [],
-            "action": [
-                {
-                    "delay": "00:00:10"
-                },
-                {
-                    "service": "input_number.set_value",
-                    "data_template": {
-                        "entity_id": f"input_number.{temperature_var}",
-                        "value": f"{{ state_attr('climate.{ac_entity}', 'temperature') }}"
-                    }
-                },
-                {
-                    "service": "input_select.select_option",
-                    "data_template": {
-                        "entity_id": f"input_select.{hvac_mode_var}",
-                        "option": "{% if state_attr('climate." + ac_entity + "', 'hvac_mode') is none %}auto{% else %}{{ state_attr('climate." + ac_entity + "', 'hvac_mode') }}{% endif %}"
-                    }
-                },
-                {
-                    "service": "input_select.select_option",
-                    "data_template": {
-                        "entity_id": f"input_select.{fan_mode_var}",
-                        "option": f"{{ state_attr('climate.{ac_entity}', 'fan_mode') }}"
-                    }
+            },
+            {
+                "service": "input_select.select_option",
+                "data_template": {
+                    "entity_id": f"input_select.{hvac_mode_var}",
+                    "option": f"""
+                        {{% set hvac_mode = states('{ac_entity}') %}} {{% if
+                        hvac_mode == 'off' %}}
+                          auto
+                        {{% elif hvac_mode == 'heat' %}}
+                          heat
+                        {{% elif hvac_mode == 'cool' %}}
+                          cool
+                        {{% elif hvac_mode == 'auto' %}}
+                          auto
+                        {{% else %}}
+                          auto
+                        {{% endif %}}
+                    """
                 }
-            ],
-            "mode": "single"
-        }
+            },
+            {
+                "service": "input_select.select_option",
+                "data_template": {
+                    "entity_id": f"input_select.{fan_mode_var}",
+                    "option": f"{{{{ state_attr('{ac_entity}', 'fan_mode') }}}}"
+                }
+            }
+        ],
+        "mode": "single"
     }
 
 
 def ac_on(random_id, trigger_id, action_id, temperature_var, fan_mode_var, hvac_mode_var, automation_name):
     return {
-        {
-            "id": random_id,
-            "alias": f"{automation_name}템플릿 냉난방기",
-            "description": "냉난방기 지정한 값으로 켜기",
-            "trigger": [{
-                "platform": "state",
-                "entity_id": trigger_id,
-                "to": "on"
-            }],
-            "condition": [],
-            "action": [
-                {
-                    "service": "climate.set_temperature",
-                    "entity_id": action_id,
-                    "data_template": {
-                        "temperature": f"{{ states('{temperature_var}') | float }}"
-                    }
-                },
-                {
-                    "delay": {
-                        "milliseconds": 500
-                    }
-                },
-                {
-                    "service": "climate.set_fan_mode",
-                    "entity_id": action_id,
-                    "data_template": {
-                        "fan_mode": f"{{ states('{fan_mode_var}') }}"
-                    }
-                },
-                {
-                    "delay": {
-                        "milliseconds": 500
-                    }
-                },
-                {
-                    "service": "climate.set_hvac_mode",
-                    "entity_id": action_id,
-                    "data_template": {
-                        "hvac_mode": f"{{ states('{hvac_mode_var}') }}"
-                    }
+        "id": random_id,
+        "alias": f"{automation_name}템플릿 냉난방기",
+        "description": "냉난방기 지정한 값으로 켜기",
+        "trigger": [{
+            "platform": "state",
+            "entity_id": trigger_id,
+            "to": "on"
+        }],
+        "condition": [],
+        "action": [
+            {
+                "service": "climate.set_temperature",
+                "entity_id": action_id,
+                "data_template": {
+                    "temperature": f"{{{{ states('input_number.{temperature_var}') | float }}}}"
                 }
-            ],
-            "mode": "single"
-        }
-
+            },
+            {
+                "delay": {
+                    "milliseconds": 500
+                }
+            },
+            {
+                "service": "climate.set_fan_mode",
+                "entity_id": action_id,
+                "data_template": {
+                    "fan_mode": f"{{{{ states('input_select.{fan_mode_var}') }}}}"
+                }
+            },
+            {
+                "delay": {
+                    "milliseconds": 500
+                }
+            },
+            {
+                "service": "climate.set_hvac_mode",
+                "entity_id": action_id,
+                "data_template": {
+                    "hvac_mode": f"{{{{ states('input_select.{hvac_mode_var}') }}}}"
+                }
+            }
+        ],
+        "mode": "single"
     }
 
 
