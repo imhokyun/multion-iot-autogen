@@ -40,6 +40,11 @@ def setup(hass: HomeAssistant, config: dict):
         # Home Assistant에서 모든 엔티티 가져오기
         all_entities = hass.states.async_all()
 
+        all_entities_path = os.path.join(
+            os.path.dirname(__file__), 'all_entities.json')
+        with open(all_entities_path, 'w', encoding='utf-8') as file:
+            json.dump(all_entities, file, ensure_ascii=False, indent=4)
+
         # 필터링된 엔티티 리스트 생성
         filtered_entities = [
             {
@@ -209,18 +214,6 @@ def setup(hass: HomeAssistant, config: dict):
                     created_automations.append(
                         f"{group['automation_name']} 한번 더 끄기")
 
-                    # automation = create_ac_bp(group["device_list"]["st_switch"][0]["entity_id"],
-                    #                           group["device_list"]["real_device"][0]["entity_id"], group["automation_name"])
-                    # automations.append(automation)
-                    # created_automations.append(group["automation_name"])
-
-                    # instant_ac_off 자동화 추가
-                    # automation_off = instant_ac_off(group["device_list"]["real_device"][1]["entity_id"], group["device_list"]
-                    #                                 ["real_device"][0]["entity_id"], group["automation_name"])
-                    # automations.append(automation_off)
-                    # created_automations.append(f"{group['automation_name']} 끄기")
-
-        # with open('automations.yaml', 'w') as file:
         with open('/config/automations.yaml', 'w') as file:
             yaml.dump(automations, file, default_flow_style=False,
                       sort_keys=False, allow_unicode=True, indent=2)

@@ -35,10 +35,6 @@ max_exceeded: warning
 trigger:
   - platform: state
     entity_id: !input "pc_st_switch"
-  - platform: state
-    entity_id: !input "pc_off_button"
-    attribute: available
-    to: "false"
 
 condition: []
 
@@ -49,6 +45,13 @@ action:
             entity_id: !input "pc_st_switch"
             state: "on"
         sequence:
+          - service: switch.turn_on
+            entity_id: !input "wol_switch"
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 1
+              milliseconds: 0
           - service: switch.turn_on
             entity_id: !input "wol_switch"
       - conditions:

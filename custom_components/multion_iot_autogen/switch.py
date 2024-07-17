@@ -7,8 +7,10 @@ _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "multion_iot_autogen"
 
+
 def setup_platform(hass, config, add_entities, discovery_info=None):
     add_entities([MyComponentSwitch(hass)])
+
 
 class MyComponentSwitch(SwitchEntity):
     def __init__(self, hass):
@@ -42,4 +44,3 @@ class MyComponentSwitch(SwitchEntity):
     @callback
     def async_update(self):
         self.async_write_ha_state()
-

@@ -1,10 +1,10 @@
 {
-    "domain": "multion_iot_autogen",
-    "name": "multion iot autogen",
-    "version": "1.0.2",
-    "documentation": "https://github.com/imhokyun/multion-iot-autogen",
-    "requirements": ["requests", "PyYAML"],
-    "dependencies": [],
-    "iot_class": "local_polling",
-    "codeowners": ["@ihkcross"]
-  }
+  "domain": "multion_iot_autogen",
+  "name": "multion iot autogen",
+  "version": "1.0.3",
+  "documentation": "https://github.com/imhokyun/multion-iot-autogen",
+  "requirements": ["requests", "PyYAML"],
+  "dependencies": [],
+  "iot_class": "local_polling",
+  "codeowners": ["@ihkcross"]
+}
